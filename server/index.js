@@ -14,35 +14,36 @@ import aiRoutes from "./routes/ai.routes.js";
 
 dotenv.config();
 
-import cors from "cors";
+const app = express();
 
+// ✅ Allowed origins for CORS
 const allowedOrigins = [
-  "http://localhost:5173",      // your local dev
-  "https://cura-link-lacs.vercel.app",  // your deployed frontend
+  "http://localhost:5173", // local dev
+  "https://cura-link-lacs.vercel.app", // deployed frontend
 ];
 
+// ✅ CORS setup
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow requests with no origin (like mobile apps or curl)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: true, // allow cookies/sessions if needed
+    credentials: true,
   })
 );
 
 app.use(express.json());
 
-// Health check
+// ✅ Health check route
 app.get("/", (_req, res) => {
   res.send("CuraLink backend is running 🚀");
 });
 
-// Routes
+// ✅ API routes
 app.use("/api", sessionRoutes);
 app.use("/api", profileRoutes);
 app.use("/api", searchRoutes);
@@ -83,7 +84,9 @@ if (process.env.NODE_ENV !== "production") {
         );
       }
 
-      app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+      app.listen(PORT, () =>
+        console.log(`Server running locally on port ${PORT}`)
+      );
     } catch (err) {
       console.error("Failed to start server", err);
       process.exit(1);
@@ -91,4 +94,9 @@ if (process.env.NODE_ENV !== "production") {
   }
 
   start();
+} else {
+  // ✅ Ensure MongoDB connects on Vercel cold start
+  connectMongo()
+    .then(() => console.log("MongoDB connected on Vercel"))
+    .catch((err) => console.error("MongoDB connection failed:", err));
 }
