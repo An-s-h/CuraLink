@@ -13,7 +13,7 @@ import {
 import Layout from "../components/Layout.jsx";
 import Button from "../components/ui/Button.jsx";
 
-import Modal from "../Components/ui/Modal.jsx";
+import Modal from "../components/ui/Modal.jsx";
 
 export default function Forums() {
   const [categories, setCategories] = useState([]);
@@ -50,7 +50,8 @@ export default function Forums() {
       // Set "General Health" as default category, fallback to first category
       if (!selectedCategoryId) {
         const generalHealthCategory = data.categories?.find(
-          (cat) => cat.slug === "general-health" || cat.name === "General Health"
+          (cat) =>
+            cat.slug === "general-health" || cat.name === "General Health"
         );
         if (generalHealthCategory) {
           setSelectedCategoryId(generalHealthCategory._id);
@@ -73,7 +74,7 @@ export default function Forums() {
       ).then((r) => r.json());
       const threadsData = data.threads || [];
       setThreads(threadsData);
-      
+
       // Automatically load details for all threads
       threadsData.forEach((thread) => {
         loadThreadDetails(thread._id);
@@ -264,7 +265,6 @@ export default function Forums() {
     }
   }
 
-
   // Render nested replies
   function renderReply(reply, threadId, depth = 0) {
     const isUpvoted = reply.upvotes?.some(
@@ -282,8 +282,8 @@ export default function Forums() {
       <div
         key={reply._id}
         className="mt-2 sm:mt-3"
-        style={{ 
-          '--indent-base': `${indentMobile}px`,
+        style={{
+          "--indent-base": `${indentMobile}px`,
           marginLeft: `${indentMobile}px`,
         }}
         data-depth={depth}
@@ -330,7 +330,10 @@ export default function Forums() {
                 {new Date(reply.createdAt).toLocaleDateString()}
               </span>
               <span className="sm:hidden">
-                {new Date(reply.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(reply.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
               </span>
             </div>
           </div>
@@ -517,7 +520,10 @@ export default function Forums() {
                       {/* Thread Header */}
                       <div className="flex items-start gap-2 sm:gap-3 md:gap-4 mb-3">
                         {/* Vote Section */}
-                        <div className="flex flex-col items-center gap-0.5 sm:gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="flex flex-col items-center gap-0.5 sm:gap-1 shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             onClick={() => voteOnThread(thread._id, "upvote")}
                             className={`p-1 sm:p-1.5 rounded transition-colors ${
@@ -564,15 +570,25 @@ export default function Forums() {
                                 </span>
                                 <div className="flex items-center gap-1 text-xs text-orange-600">
                                   <User className="w-3 h-3 shrink-0" />
-                                  <span className="truncate max-w-[100px] sm:max-w-none">{thread.authorUserId?.username || "Anonymous"}</span>
+                                  <span className="truncate max-w-[100px] sm:max-w-none">
+                                    {thread.authorUserId?.username ||
+                                      "Anonymous"}
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-1 text-xs text-amber-600 shrink-0">
                                   <Clock className="w-3 h-3" />
                                   <span className="hidden sm:inline">
-                                    {new Date(thread.createdAt).toLocaleDateString()}
+                                    {new Date(
+                                      thread.createdAt
+                                    ).toLocaleDateString()}
                                   </span>
                                   <span className="sm:hidden">
-                                    {new Date(thread.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    {new Date(
+                                      thread.createdAt
+                                    ).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1 text-xs text-amber-600 shrink-0">
@@ -593,11 +609,15 @@ export default function Forums() {
                             <div className="border-t border-orange-200 pt-3 sm:pt-4">
                               <h4 className="font-semibold text-sm sm:text-base text-orange-700 mb-2 sm:mb-3 flex items-center gap-2">
                                 <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                {threadDetails?.replies ? threadDetails.replies.length : thread.replyCount || 0} Replies
+                                {threadDetails?.replies
+                                  ? threadDetails.replies.length
+                                  : thread.replyCount || 0}{" "}
+                                Replies
                               </h4>
 
                               {/* Root Level Replies - Automatically shown */}
-                              {threadDetails?.replies && threadDetails.replies.length > 0 ? (
+                              {threadDetails?.replies &&
+                              threadDetails.replies.length > 0 ? (
                                 <div className="space-y-2 sm:space-y-3">
                                   {threadDetails.replies.map((reply) =>
                                     renderReply(reply, thread._id, 0)
@@ -618,8 +638,7 @@ export default function Forums() {
                                     <div>
                                       <textarea
                                         value={
-                                          replyBody[`${thread._id}-root`] ||
-                                          ""
+                                          replyBody[`${thread._id}-root`] || ""
                                         }
                                         onChange={(e) =>
                                           setReplyBody((prev) => ({
@@ -641,9 +660,7 @@ export default function Forums() {
                                           Reply
                                         </button>
                                         <button
-                                          onClick={() =>
-                                            setReplyingTo(null)
-                                          }
+                                          onClick={() => setReplyingTo(null)}
                                           className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-gray-300 transition-all"
                                         >
                                           Cancel

@@ -17,7 +17,7 @@ import Layout from "../components/Layout.jsx";
 import Input from "../components/ui/Input.jsx";
 import Button from "../components/ui/Button.jsx";
 import Card from "../components/ui/Card.jsx";
-import Modal from "../Components/ui/Modal.jsx";
+import Modal from "../components/ui/Modal.jsx";
 
 export default function Experts() {
   const [q, setQ] = useState("");

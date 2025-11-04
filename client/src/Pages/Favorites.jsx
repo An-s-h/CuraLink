@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Layout from "../components/Layout.jsx";
 import Button from "../components/ui/Button.jsx";
-import Modal from "../Components/ui/Modal.jsx";
+import Modal from "../components/ui/Modal.jsx";
 
 export default function Favorites() {
   const [items, setItems] = useState([]);
@@ -93,7 +93,9 @@ export default function Favorites() {
         favorite.item?.pmid ||
         favorite.item?.userId;
       await fetch(
-        `${base}/api/favorites/${user._id || user.id}?type=${favorite.type}&id=${encodeURIComponent(itemId)}`,
+        `${base}/api/favorites/${user._id || user.id}?type=${
+          favorite.type
+        }&id=${encodeURIComponent(itemId)}`,
         { method: "DELETE" }
       );
       load();
@@ -322,14 +324,12 @@ export default function Favorites() {
           </div>
 
           <div className="space-y-1 mb-3">
-            {p.authors &&
-              Array.isArray(p.authors) &&
-              p.authors.length > 0 && (
-                <div className="flex items-center text-xs text-orange-700">
-                  <User className="w-3 h-3 mr-1.5 shrink-0" />
-                  <span className="line-clamp-1">{p.authors.join(", ")}</span>
-                </div>
-              )}
+            {p.authors && Array.isArray(p.authors) && p.authors.length > 0 && (
+              <div className="flex items-center text-xs text-orange-700">
+                <User className="w-3 h-3 mr-1.5 shrink-0" />
+                <span className="line-clamp-1">{p.authors.join(", ")}</span>
+              </div>
+            )}
             {(p.year || p.month) && (
               <div className="flex items-center text-xs text-amber-700">
                 <Calendar className="w-3 h-3 mr-1.5 shrink-0" />
@@ -470,10 +470,7 @@ export default function Favorites() {
 
   function renderCollaboratorCard(favorite) {
     const e = favorite.item;
-    const medicalInterests = [
-      ...(e.specialties || []),
-      ...(e.interests || []),
-    ];
+    const medicalInterests = [...(e.specialties || []), ...(e.interests || [])];
     return (
       <div
         key={favorite._id}
@@ -708,7 +705,9 @@ export default function Favorites() {
               <p className="text-orange-600 max-w-md mx-auto">
                 {selectedFilter === "all"
                   ? "Start exploring and favorite items you're interested in!"
-                  : `No ${filterOptions.find((f) => f.value === selectedFilter)?.label.toLowerCase()} found.`}
+                  : `No ${filterOptions
+                      .find((f) => f.value === selectedFilter)
+                      ?.label.toLowerCase()} found.`}
               </p>
             </div>
           )}

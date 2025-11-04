@@ -18,7 +18,7 @@ import {
   ExternalLink,
   BookOpen,
 } from "lucide-react";
-import Modal from "../Components/ui/Modal";
+import Modal from "../components/ui/Modal";
 
 export default function DashboardResearcher() {
   const [data, setData] = useState({
@@ -757,7 +757,9 @@ export default function DashboardResearcher() {
               <div className="flex items-center gap-2 sm:gap-3">
                 <Star className="w-5 h-5 sm:w-6 sm:h-6 text-white shrink-0" />
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white">My Favorites</h2>
+                  <h2 className="text-lg sm:text-xl font-bold text-white">
+                    My Favorites
+                  </h2>
                   <p className="text-orange-100 text-xs sm:text-sm">
                     {favorites.length} saved item
                     {favorites.length !== 1 ? "s" : ""}
@@ -834,7 +836,6 @@ export default function DashboardResearcher() {
             )}
           </div>
         </div>
-
       </div>
 
       {/* Trial Details Modal */}
