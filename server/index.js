@@ -14,8 +14,27 @@ import aiRoutes from "./routes/ai.routes.js";
 
 dotenv.config();
 
-const app = express();
-app.use(cors());
+import cors from "cors";
+
+const allowedOrigins = [
+  "http://localhost:5173",      // your local dev
+  "https://cura-link-lacs.vercel.app",  // your deployed frontend
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow requests with no origin (like mobile apps or curl)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true, // allow cookies/sessions if needed
+  })
+);
+
 app.use(express.json());
 
 // Health check
