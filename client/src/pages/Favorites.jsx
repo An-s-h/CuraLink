@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Layout from "../components/Layout.jsx";
 import Button from "../components/ui/Button.jsx";
-import Modal from "../Components/ui/Modal.jsx";
+import Modal from "../components/ui/Modal.jsx";
 
 export default function Favorites() {
   const [items, setItems] = useState([]);

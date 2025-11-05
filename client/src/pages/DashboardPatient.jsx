@@ -18,7 +18,7 @@ import {
   Calendar as CalendarIcon,
   MoreVertical,
 } from "lucide-react";
-import Modal from "../Components/ui/Modal";
+import Modal from "../components/ui/Modal";
 
 export default function DashboardPatient() {
   const [data, setData] = useState({

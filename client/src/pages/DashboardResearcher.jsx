@@ -18,7 +18,7 @@ import {
   ExternalLink,
   BookOpen,
 } from "lucide-react";
-import Modal from "../Components/ui/Modal";
+import Modal from "../components/ui/Modal";
 
 export default function DashboardResearcher() {
   const [data, setData] = useState({
