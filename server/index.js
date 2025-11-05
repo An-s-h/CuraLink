@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { connectMongo } from "./config/mongo.js";
+import { ensureMongoConnection } from "./middleware/mongo.js";
 import sessionRoutes from "./routes/session.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
 import searchRoutes from "./routes/search.routes.js";
@@ -18,7 +19,6 @@ import messagesRoutes from "./routes/messages.routes.js";
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
-
 const app = express();
 
 app.use(
@@ -30,10 +30,14 @@ app.use(
 
 app.use(express.json());
 
-// Health check
+// Health check (no DB connection needed)
 app.get("/", (_req, res) => {
   res.send("CuraLink backend is running 🚀");
 });
+
+// Ensure MongoDB connection for all API routes
+// This is critical for Vercel serverless functions
+app.use("/api", ensureMongoConnection);
 
 // Mount routes
 app.use("/api", sessionRoutes);
@@ -51,7 +55,7 @@ app.use("/api", messagesRoutes);
 export default app;
 
 // ✅ Run server locally only (not on Vercel)
-// Vercel sets VERCEL env variable, so we check for both conditions
+// Vercel uses serverless functions, so we don't call app.listen() there
 const isLocal = !process.env.VERCEL && process.env.NODE_ENV !== "production";
 
 if (isLocal) {

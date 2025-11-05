@@ -17,102 +17,128 @@ router.get("/forums/categories", async (_req, res) => {
 
 // Get threads with populated data
 router.get("/forums/threads", async (req, res) => {
-  const { categoryId } = req.query;
-  const q = categoryId ? { categoryId } : {};
-  const threads = await Thread.find(q)
-    .populate("categoryId", "name slug")
-    .populate("authorUserId", "username email")
-    .sort({ createdAt: -1 })
-    .lean();
+  try {
+    const { categoryId } = req.query;
+    const q = categoryId ? { categoryId } : {};
+    const threads = await Thread.find(q)
+      .populate("categoryId", "name slug")
+      .populate("authorUserId", "username email")
+      .sort({ createdAt: -1 })
+      .lean();
 
-  // Get reply counts for each thread
-  const threadIds = threads.map((t) => t._id);
-  const replyCounts = await Reply.aggregate([
-    { $match: { threadId: { $in: threadIds } } },
-    { $group: { _id: "$threadId", count: { $sum: 1 } } },
-  ]);
+    // Get reply counts for each thread
+    const threadIds = threads.map((t) => t._id);
+    const replyCounts =
+      threadIds.length > 0
+        ? await Reply.aggregate([
+            { $match: { threadId: { $in: threadIds } } },
+            { $group: { _id: "$threadId", count: { $sum: 1 } } },
+          ])
+        : [];
 
-  const countMap = {};
-  replyCounts.forEach((item) => {
-    countMap[item._id.toString()] = item.count;
-  });
+    const countMap = {};
+    replyCounts.forEach((item) => {
+      countMap[item._id.toString()] = item.count;
+    });
 
-  const threadsWithCounts = threads.map((thread) => ({
-    ...thread,
-    replyCount: countMap[thread._id.toString()] || 0,
-    voteScore: (thread.upvotes?.length || 0) - (thread.downvotes?.length || 0),
-  }));
+    const threadsWithCounts = threads.map((thread) => ({
+      ...thread,
+      replyCount: countMap[thread._id.toString()] || 0,
+      voteScore:
+        (thread.upvotes?.length || 0) - (thread.downvotes?.length || 0),
+    }));
 
-  res.json({ threads: threadsWithCounts });
+    res.json({ threads: threadsWithCounts });
+  } catch (error) {
+    console.error("Error fetching threads:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to fetch threads", message: error.message });
+  }
 });
 
 // Get single thread with all replies in tree structure
 router.get("/forums/threads/:threadId", async (req, res) => {
-  const { threadId } = req.params;
-  const thread = await Thread.findById(threadId)
-    .populate("categoryId", "name slug")
-    .populate("authorUserId", "username email")
-    .lean();
+  try {
+    const { threadId } = req.params;
+    const thread = await Thread.findById(threadId)
+      .populate("categoryId", "name slug")
+      .populate("authorUserId", "username email")
+      .lean();
 
-  if (!thread) return res.status(404).json({ error: "Thread not found" });
+    if (!thread) return res.status(404).json({ error: "Thread not found" });
 
-  // Increment view count
-  await Thread.findByIdAndUpdate(threadId, { $inc: { viewCount: 1 } });
+    // Increment view count
+    await Thread.findByIdAndUpdate(threadId, { $inc: { viewCount: 1 } });
 
-  // Get all replies with populated data
-  const replies = await Reply.find({ threadId })
-    .populate("authorUserId", "username email")
-    .sort({ createdAt: 1 })
-    .lean();
+    // Get all replies with populated data
+    const replies = await Reply.find({ threadId })
+      .populate("authorUserId", "username email")
+      .sort({ createdAt: 1 })
+      .lean();
 
-  // Get researcher specialties for replies
-  const researcherIds = replies
-    .filter((r) => r.authorRole === "researcher")
-    .map((r) => r.authorUserId?._id || r.authorUserId);
-  
-  const profiles = await Profile.find({ userId: { $in: researcherIds } }).lean();
-  const profileMap = {};
-  profiles.forEach((p) => {
-    profileMap[p.userId.toString()] = p;
-  });
+    // Get researcher specialties for replies
+    const researcherIds = replies
+      .filter((r) => r.authorRole === "researcher")
+      .map((r) => r.authorUserId?._id || r.authorUserId);
 
-  // Build tree structure
-  const buildReplyTree = (parentId = null) => {
-    return replies
-      .filter((reply) => {
-        const parent = reply.parentReplyId
-          ? reply.parentReplyId.toString()
-          : null;
-        return parent === (parentId ? parentId.toString() : null);
-      })
-      .map((reply) => {
-        const profile = reply.authorUserId
-          ? profileMap[reply.authorUserId._id?.toString() || reply.authorUserId.toString()]
-          : null;
-        const specialties =
-          reply.authorRole === "researcher" && profile
-            ? profile.researcher?.specialties || profile.researcher?.interests || []
-            : [];
+    const profiles = await Profile.find({
+      userId: { $in: researcherIds },
+    }).lean();
+    const profileMap = {};
+    profiles.forEach((p) => {
+      profileMap[p.userId.toString()] = p;
+    });
 
-        return {
-          ...reply,
-          voteScore: (reply.upvotes?.length || 0) - (reply.downvotes?.length || 0),
-          specialties,
-          children: buildReplyTree(reply._id),
-        };
-      });
-  };
+    // Build tree structure
+    const buildReplyTree = (parentId = null) => {
+      return replies
+        .filter((reply) => {
+          const parent = reply.parentReplyId
+            ? reply.parentReplyId.toString()
+            : null;
+          return parent === (parentId ? parentId.toString() : null);
+        })
+        .map((reply) => {
+          const profile = reply.authorUserId
+            ? profileMap[
+                reply.authorUserId._id?.toString() ||
+                  reply.authorUserId.toString()
+              ]
+            : null;
+          const specialties =
+            reply.authorRole === "researcher" && profile
+              ? profile.researcher?.specialties ||
+                profile.researcher?.interests ||
+                []
+              : [];
 
-  const replyTree = buildReplyTree();
+          return {
+            ...reply,
+            voteScore:
+              (reply.upvotes?.length || 0) - (reply.downvotes?.length || 0),
+            specialties,
+            children: buildReplyTree(reply._id),
+          };
+        });
+    };
 
-  res.json({
-    thread: {
-      ...thread,
-      voteScore:
-        (thread.upvotes?.length || 0) - (thread.downvotes?.length || 0),
-    },
-    replies: replyTree,
-  });
+    const replyTree = buildReplyTree();
+
+    res.json({
+      thread: {
+        ...thread,
+        voteScore:
+          (thread.upvotes?.length || 0) - (thread.downvotes?.length || 0),
+      },
+      replies: replyTree,
+    });
+  } catch (error) {
+    console.error("Error fetching thread:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to fetch thread", message: error.message });
+  }
 });
 
 // Create new thread
@@ -138,9 +164,11 @@ router.post("/forums/threads", async (req, res) => {
 
   // If patient creates a thread, notify researchers in matching specialties
   if (authorRole === "patient") {
-    const authorProfile = await Profile.findOne({ userId: authorUserId }).lean();
+    const authorProfile = await Profile.findOne({
+      userId: authorUserId,
+    }).lean();
     const patientConditions = authorProfile?.patient?.conditions || [];
-    
+
     if (patientConditions.length > 0) {
       const researchers = await Profile.find({
         role: "researcher",
@@ -151,7 +179,7 @@ router.post("/forums/threads", async (req, res) => {
       }).lean();
 
       const author = await User.findById(authorUserId).lean();
-      
+
       for (const researcher of researchers) {
         await Notification.create({
           userId: researcher.userId,
@@ -160,7 +188,9 @@ router.post("/forums/threads", async (req, res) => {
           relatedItemId: thread._id,
           relatedItemType: "thread",
           title: "New Patient Question",
-          message: `${author?.username || "A patient"} asked a question in your specialty: "${title}"`,
+          message: `${
+            author?.username || "A patient"
+          } asked a question in your specialty: "${title}"`,
           metadata: {
             threadId: thread._id.toString(),
             threadTitle: title,
@@ -183,13 +213,8 @@ router.post("/forums/threads", async (req, res) => {
 
 // Create reply (can be nested)
 router.post("/forums/replies", async (req, res) => {
-  const {
-    threadId,
-    parentReplyId,
-    authorUserId,
-    authorRole,
-    body,
-  } = req.body || {};
+  const { threadId, parentReplyId, authorUserId, authorRole, body } =
+    req.body || {};
   if (!threadId || !authorUserId || !authorRole || !body) {
     return res
       .status(400)
@@ -238,8 +263,9 @@ router.post("/forums/replies", async (req, res) => {
   // Create notification for thread author (if reply author is different)
   if (thread.authorUserId.toString() !== authorUserId.toString()) {
     const replyAuthor = await User.findById(authorUserId).lean();
-    const notificationType = authorRole === "researcher" ? "researcher_replied" : "new_reply";
-    
+    const notificationType =
+      authorRole === "researcher" ? "researcher_replied" : "new_reply";
+
     await Notification.create({
       userId: thread.authorUserId,
       type: notificationType,
@@ -247,7 +273,9 @@ router.post("/forums/replies", async (req, res) => {
       relatedItemId: threadId,
       relatedItemType: "thread",
       title: authorRole === "researcher" ? "Researcher Replied" : "New Reply",
-      message: `${replyAuthor?.username || "Someone"} replied to your thread: "${thread.title}"`,
+      message: `${
+        replyAuthor?.username || "Someone"
+      } replied to your thread: "${thread.title}"`,
       metadata: {
         threadTitle: thread.title,
         threadId: threadId.toString(),
@@ -259,7 +287,10 @@ router.post("/forums/replies", async (req, res) => {
   // If replying to another reply, notify the parent reply author
   if (parentReplyId) {
     const parentReply = await Reply.findById(parentReplyId).lean();
-    if (parentReply && parentReply.authorUserId.toString() !== authorUserId.toString()) {
+    if (
+      parentReply &&
+      parentReply.authorUserId.toString() !== authorUserId.toString()
+    ) {
       const replyAuthor = await User.findById(authorUserId).lean();
       await Notification.create({
         userId: parentReply.authorUserId,
@@ -268,7 +299,9 @@ router.post("/forums/replies", async (req, res) => {
         relatedItemId: parentReplyId,
         relatedItemType: "reply",
         title: "New Reply",
-        message: `${replyAuthor?.username || "Someone"} replied to your comment`,
+        message: `${
+          replyAuthor?.username || "Someone"
+        } replied to your comment`,
         metadata: {
           threadId: threadId.toString(),
           replyId: reply._id.toString(),
@@ -337,7 +370,10 @@ router.post("/forums/replies/:replyId/vote", async (req, res) => {
   await reply.save();
 
   // Create notification for reply author if upvoted (and not by themselves)
-  if (voteType === "upvote" && reply.authorUserId.toString() !== userId.toString()) {
+  if (
+    voteType === "upvote" &&
+    reply.authorUserId.toString() !== userId.toString()
+  ) {
     const voter = await User.findById(userId).lean();
     await Notification.create({
       userId: reply.authorUserId,
@@ -405,7 +441,10 @@ router.post("/forums/threads/:threadId/vote", async (req, res) => {
   await thread.save();
 
   // Create notification for thread author if upvoted (and not by themselves)
-  if (voteType === "upvote" && thread.authorUserId.toString() !== userId.toString()) {
+  if (
+    voteType === "upvote" &&
+    thread.authorUserId.toString() !== userId.toString()
+  ) {
     const voter = await User.findById(userId).lean();
     await Notification.create({
       userId: thread.authorUserId,
@@ -414,7 +453,9 @@ router.post("/forums/threads/:threadId/vote", async (req, res) => {
       relatedItemId: threadId,
       relatedItemType: "thread",
       title: "Thread Upvoted",
-      message: `${voter?.username || "Someone"} upvoted your thread: "${thread.title}"`,
+      message: `${voter?.username || "Someone"} upvoted your thread: "${
+        thread.title
+      }"`,
       metadata: {
         threadId: threadId.toString(),
         threadTitle: thread.title,
