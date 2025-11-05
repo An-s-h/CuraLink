@@ -17,6 +17,8 @@ import messagesRoutes from "./routes/messages.routes.js";
 
 dotenv.config();
 
+const PORT = process.env.PORT || 3000;
+
 const app = express();
 
 app.use(
@@ -49,7 +51,10 @@ app.use("/api", messagesRoutes);
 export default app;
 
 // ✅ Run server locally only (not on Vercel)
-if (process.env.NODE_ENV !== "production") {
+// Vercel sets VERCEL env variable, so we check for both conditions
+const isLocal = !process.env.VERCEL && process.env.NODE_ENV !== "production";
+
+if (isLocal) {
   async function start() {
     try {
       await connectMongo();
