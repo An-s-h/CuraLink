@@ -5,6 +5,7 @@ import { Thread } from "../models/Thread.js";
 import { Reply } from "../models/Reply.js";
 import { User } from "../models/User.js";
 import { Profile } from "../models/Profile.js";
+import { Notification } from "../models/Notification.js";
 
 const router = Router();
 
@@ -135,6 +136,41 @@ router.post("/forums/threads", async (req, res) => {
     .populate("authorUserId", "username email")
     .lean();
 
+  // If patient creates a thread, notify researchers in matching specialties
+  if (authorRole === "patient") {
+    const authorProfile = await Profile.findOne({ userId: authorUserId }).lean();
+    const patientConditions = authorProfile?.patient?.conditions || [];
+    
+    if (patientConditions.length > 0) {
+      const researchers = await Profile.find({
+        role: "researcher",
+        $or: [
+          { "researcher.specialties": { $in: patientConditions } },
+          { "researcher.interests": { $in: patientConditions } },
+        ],
+      }).lean();
+
+      const author = await User.findById(authorUserId).lean();
+      
+      for (const researcher of researchers) {
+        await Notification.create({
+          userId: researcher.userId,
+          type: "patient_question",
+          relatedUserId: authorUserId,
+          relatedItemId: thread._id,
+          relatedItemType: "thread",
+          title: "New Patient Question",
+          message: `${author?.username || "A patient"} asked a question in your specialty: "${title}"`,
+          metadata: {
+            threadId: thread._id.toString(),
+            threadTitle: title,
+            conditions: patientConditions,
+          },
+        });
+      }
+    }
+  }
+
   res.json({
     ok: true,
     thread: {
@@ -199,6 +235,48 @@ router.post("/forums/replies", async (req, res) => {
       profile?.researcher?.specialties || profile?.researcher?.interests || [];
   }
 
+  // Create notification for thread author (if reply author is different)
+  if (thread.authorUserId.toString() !== authorUserId.toString()) {
+    const replyAuthor = await User.findById(authorUserId).lean();
+    const notificationType = authorRole === "researcher" ? "researcher_replied" : "new_reply";
+    
+    await Notification.create({
+      userId: thread.authorUserId,
+      type: notificationType,
+      relatedUserId: authorUserId,
+      relatedItemId: threadId,
+      relatedItemType: "thread",
+      title: authorRole === "researcher" ? "Researcher Replied" : "New Reply",
+      message: `${replyAuthor?.username || "Someone"} replied to your thread: "${thread.title}"`,
+      metadata: {
+        threadTitle: thread.title,
+        threadId: threadId.toString(),
+        replyId: reply._id.toString(),
+      },
+    });
+  }
+
+  // If replying to another reply, notify the parent reply author
+  if (parentReplyId) {
+    const parentReply = await Reply.findById(parentReplyId).lean();
+    if (parentReply && parentReply.authorUserId.toString() !== authorUserId.toString()) {
+      const replyAuthor = await User.findById(authorUserId).lean();
+      await Notification.create({
+        userId: parentReply.authorUserId,
+        type: "new_reply",
+        relatedUserId: authorUserId,
+        relatedItemId: parentReplyId,
+        relatedItemType: "reply",
+        title: "New Reply",
+        message: `${replyAuthor?.username || "Someone"} replied to your comment`,
+        metadata: {
+          threadId: threadId.toString(),
+          replyId: reply._id.toString(),
+        },
+      });
+    }
+  }
+
   res.json({
     ok: true,
     reply: {
@@ -258,6 +336,24 @@ router.post("/forums/replies/:replyId/vote", async (req, res) => {
 
   await reply.save();
 
+  // Create notification for reply author if upvoted (and not by themselves)
+  if (voteType === "upvote" && reply.authorUserId.toString() !== userId.toString()) {
+    const voter = await User.findById(userId).lean();
+    await Notification.create({
+      userId: reply.authorUserId,
+      type: "reply_upvoted",
+      relatedUserId: userId,
+      relatedItemId: replyId,
+      relatedItemType: "reply",
+      title: "Reply Upvoted",
+      message: `${voter?.username || "Someone"} upvoted your reply`,
+      metadata: {
+        replyId: replyId.toString(),
+        threadId: reply.threadId.toString(),
+      },
+    });
+  }
+
   res.json({
     ok: true,
     voteScore: reply.upvotes.length - reply.downvotes.length,
@@ -307,6 +403,24 @@ router.post("/forums/threads/:threadId/vote", async (req, res) => {
   }
 
   await thread.save();
+
+  // Create notification for thread author if upvoted (and not by themselves)
+  if (voteType === "upvote" && thread.authorUserId.toString() !== userId.toString()) {
+    const voter = await User.findById(userId).lean();
+    await Notification.create({
+      userId: thread.authorUserId,
+      type: "thread_upvoted",
+      relatedUserId: userId,
+      relatedItemId: threadId,
+      relatedItemType: "thread",
+      title: "Thread Upvoted",
+      message: `${voter?.username || "Someone"} upvoted your thread: "${thread.title}"`,
+      metadata: {
+        threadId: threadId.toString(),
+        threadTitle: thread.title,
+      },
+    });
+  }
 
   res.json({
     ok: true,

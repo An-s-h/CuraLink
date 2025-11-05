@@ -11,6 +11,9 @@ import forumsRoutes from "./routes/forums.routes.js";
 import { ForumCategory } from "./models/ForumCategory.js";
 import trialsRoutes from "./routes/trials.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
+import insightsRoutes from "./routes/insights.routes.js";
+import followRoutes from "./routes/follow.routes.js";
+import messagesRoutes from "./routes/messages.routes.js";
 
 dotenv.config();
 
@@ -25,12 +28,12 @@ app.use(
 
 app.use(express.json());
 
-// ✅ Health check route
+// Health check
 app.get("/", (_req, res) => {
   res.send("CuraLink backend is running 🚀");
 });
 
-// ✅ API routes
+// Mount routes
 app.use("/api", sessionRoutes);
 app.use("/api", profileRoutes);
 app.use("/api", searchRoutes);
@@ -39,19 +42,19 @@ app.use("/api", favoritesRoutes);
 app.use("/api", forumsRoutes);
 app.use("/api", trialsRoutes);
 app.use("/api", aiRoutes);
+app.use("/api", insightsRoutes);
+app.use("/api", followRoutes);
+app.use("/api", messagesRoutes);
 
-const PORT = process.env.PORT || 5000;
-
-// ✅ Export for Vercel
 export default app;
 
-// ✅ Run locally only
+// ✅ Run server locally only (not on Vercel)
 if (process.env.NODE_ENV !== "production") {
   async function start() {
     try {
       await connectMongo();
 
-      // Seed forum categories
+      // Seed default forum categories if not present
       const defaults = [
         { slug: "lung-cancer", name: "Lung Cancer" },
         { slug: "heart-related", name: "Heart Related" },
@@ -72,18 +75,13 @@ if (process.env.NODE_ENV !== "production") {
       }
 
       app.listen(PORT, () =>
-        console.log(`Server running locally on port ${PORT}`)
+        console.log(`🚀 Server running on http://localhost:${PORT}`)
       );
     } catch (err) {
-      console.error("Failed to start server", err);
+      console.error("❌ Failed to start server:", err);
       process.exit(1);
     }
   }
 
   start();
-} else {
-  // ✅ Ensure MongoDB connects on Vercel cold start
-  connectMongo()
-    .then(() => console.log("MongoDB connected on Vercel"))
-    .catch((err) => console.error("MongoDB connection failed:", err));
 }
